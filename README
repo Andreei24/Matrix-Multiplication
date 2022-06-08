@@ -1,0 +1,25 @@
+Robert-Andrei Raucescu 335CB
+Tema 2 ASC
+
+Implementare BLAS:
+    Pentru aceasta implementare am ales sa folosesc functiile:
+        - dtrmm: inmulteste 2 matrice dintre care una este triangulata superior sau inferior. Am folosit aceasta functie pentru a realiza inmultirea dintre B si A, iar apoi dintre BA si (A**T) intrucat A si (A**T) sunt triangulate superior, respectiv inferior.
+        - dgemm: inmulteste 2 matrice si aduna rezultatul inmultirii cu o a treia. Astfel, am inmultit matricele B si (B**T) si am adunat rezultatul la rezultatul functiiei anterioare ( B * A * (A**T)) pentru a obtine suma finala.
+
+Impementarea Neopt:
+	Pentru aceasta implementare am folosit abordarea clasica de inmultire a matricelor, singurul detaliu este ca am tinut cont de matricea triangulata, astfel in for-ul interior varibila k parcurge doar valorile [0,j], restul elementelor fiind 0. Prin aceasta metoda am realizat ambele inmultiri cu matricele triangulate, iar pentru ultima ( B * (B**T)) am folosit aceeasi metoda, dar cu parcurgerea tuturor elementelor. La final am adunat elemtele din cele 2 matrice in matricea returnata ca rezultat.
+
+Implementarea Opt:
+	Pentru implementarea optimizata m-am folosit de laboratorul 5, astfel folosind structura de BMM prezentata si invatata acolo. Matricea este impartita in blocuri de cate 40 x 40 de elemente (dimensiunea linei de cache pe partita nehalem este de 32k, iar dimensiunea linie in elemente de matrice este 32k / sizeof(double), iar pentru bloc avem nevoie de un numar b astfel incat 3b^2 < 32k / 8 ). Apoi am optimizat accesul la memorie prin folosirea pointerilor in loc de accesarile directe si folosirea registrilor pentru varibilele constante in interiorul unor loop-uri. Pentru a tine cont si de matricele triangulate, parcurg doar blocurile care nu au toate elementele nule astfel, loop-ul bk preia doar blocurile [bj,N]. In final, am adunat elementele celor 2 matrice rezultate in matricea returnata ca rezultat.
+
+Analiza cachegrind:
+	Varianta BLAS are o valoare de aproximativ 50 de ori mai mica de I refs decat varianta opt si una de aproximativ 100 de ori mai mica decat cea neopt. Cu toate ca are un procent de miss mai mare decat celelalte 2 metode pentru cache-ul de L1, aceasta metoda are de ~15 ori mai putine citiri de memorie (D refs) decat metoda optimizata. Rata de miss mai mare este compensata de numarul semnificativ mai redus de accesari, ceea ce ii si ofera algoritmului eficienta acestuia.
+
+	Intre variantele opt si neopt se poate observa in primul rand diferenta numarului de instructiuni executate  ( 2.38 bil vs 5.92 intre opt vs neopt) si diferentele intre citirile si scrierile (1.41 bil vs 2.96 bil), aceste diferenta scot in evidenta rezultatul optimizarilor de accesare a memoriei implementate in varianta opt (mai putine citiri si scrieri). De asemenea diferenta intre ratele de miss-uri pentru cache-urile de instructiuni si accesari de memorie se datoreaza impartirii in blocuri a matricelor in varianta opt astfel reducand semnificativ numarul de miss-uri.
+
+
+Comparatie BLAS vs Opt vs Neopt:
+	Din graficul atasat se poate observa diferenta evidenta intre eficienta celor 3 implementari unde:
+		- Varianta BLAS are o complexitate de aproximativ N^2.8, fiind specializata pentru realizarea de inmultiri de matrice, factorul de crestere este unul mult mai mic comparativ cu restul implementarilor, astfel cresterea timpului de executie se observa abia la teste de dimensiuni foarte mari.
+		- Varianta Opt are o complexitate de N^3 iar cresterea timpului de executie este evidenta cu fiecare incrementare a marimii testelor, dar datorita optimizarilor de accesare a memoriei si cele de cache timpul este mai mult decat injumatatit comparativ cu metoda neopt, care are aceeasi complexitate dar fara optimizari. Rezultatul este o metoda mai eficienta decat cea obisnuita, dar inca lasa de dorit comparativ cu soft-urile specializate.
+		- Varianta neopt doar indica cresterea exponentiala a timpului de executie cu marimea testelor folosind o metoda clasica de inmultire de matrice, scopul acesteia fiind mai mult ca valoarea de referinta pentru celelalte 2 metode.
